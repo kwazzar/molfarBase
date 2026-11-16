@@ -6,52 +6,37 @@
 //
 
 import CoreData
+import OSLog
 
-struct PersistenceController {
+final class PersistenceController {
     static let shared = PersistenceController()
-
-    @MainActor
-    static let preview: PersistenceController = {
-        let result = PersistenceController(inMemory: true)
-        let viewContext = result.container.viewContext
-        for _ in 0..<10 {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
-        }
-        do {
-            try viewContext.save()
-        } catch {
-            // Replace this implementation with code to handle the error appropriately.
-            // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-            let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-        }
-        return result
-    }()
-
     let container: NSPersistentContainer
-
-    init(inMemory: Bool = false) {
+    
+    static let logger = Logger(subsystem: "com.nazar.molfarBase", category: "CoreData")
+    
+    init() {
         container = NSPersistentContainer(name: "molfarBase")
-        if inMemory {
-            container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
-        }
-        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
-            if let error = error as NSError? {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-
-                /*
-                 Typical reasons for an error here include:
-                 * The parent directory does not exist, cannot be created, or disallows writing.
-                 * The persistent store is not accessible, due to permissions or data protection when the device is locked.
-                 * The device is out of space.
-                 * The store could not be migrated to the current model version.
-                 Check the error message to determine what the actual problem was.
-                 */
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+        container.loadPersistentStores { _, error in
+            if let error {
+                Self.logger.fault("Помилка завантаження сховища: \(error.localizedDescription)")
+                fatalError("Store error: \(error)")
             }
-        })
+        }
         container.viewContext.automaticallyMergesChangesFromParent = true
+        Self.logger.info("PersistentContainer успішно ініціалізовано")
+    }
+}
+
+// MARK: - Fetch for UI
+extension PersistenceController {
+    func fetchRows() async throws -> [RowItem] {
+        let ctx = container.newBackgroundContext()
+        return try await ctx.perform {
+            let req = ModelB.fetchRequest()
+            req.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+            return try ctx.fetch(req).map {
+                RowItem(id: $0.id ?? UUID(), title: $0.title ?? "", value: $0.value)
+            }
+        }
     }
 }
