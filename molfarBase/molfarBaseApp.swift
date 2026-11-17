@@ -6,16 +6,15 @@
 //
 
 import SwiftUI
-import CoreData
 
 @main
 struct molfarBaseApp: App {
-    let persistenceController = PersistenceController.shared
-
+    
+    @State private var vm = ListViewModel(store: PersistenceController.shared)
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+            ContentView(vm: vm)
         }
     }
 }

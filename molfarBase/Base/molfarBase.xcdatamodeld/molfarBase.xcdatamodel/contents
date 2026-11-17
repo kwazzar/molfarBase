@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24902" systemVersion="25F84" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
-    <entity name="ModelA" representedClassName="ModelA" syncable="YES" codeGenerationType="class">
+    <entity name="ModelA" representedClassName="ModelA" syncable="YES">
         <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" optional="YES" attributeType="String"/>
         <relationship name="items" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ModelB" inverseName="owner" inverseEntity="ModelB"/>
     </entity>
-    <entity name="ModelB" representedClassName="ModelB" syncable="YES" codeGenerationType="class">
+    <entity name="ModelB" representedClassName="ModelB" syncable="YES">
         <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" optional="YES" attributeType="String"/>
         <attribute name="value" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>

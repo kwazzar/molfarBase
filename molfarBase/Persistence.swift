@@ -8,7 +8,14 @@
 import CoreData
 import OSLog
 
-final class PersistenceController {
+protocol PersistenceStore {
+    func isEmpty() async throws -> Bool
+    func generateObjects() async throws
+    func fetchRows() async throws -> [RowItem]
+    func clearDatabase() async throws
+}
+
+final class PersistenceController: PersistenceStore {
     static let shared = PersistenceController()
     let container: NSPersistentContainer
     
@@ -35,8 +42,78 @@ extension PersistenceController {
             let req = ModelB.fetchRequest()
             req.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
             return try ctx.fetch(req).map {
-                RowItem(id: $0.id ?? UUID(), title: $0.title ?? "", value: $0.value)
+                RowItem(id: $0.id, title: $0.title ?? "", value: $0.value)
             }
         }
+    }
+}
+
+// MARK: - Generation
+extension PersistenceController {
+    
+    func generateObjects(countA: Int = 100, countB: Int = 100_000) async throws {
+        let ctx = container.newBackgroundContext()
+        
+        try await ctx.perform {
+            let parents: [ModelA] = (0..<countA).map { i in
+                let a = ModelA(context: ctx)
+                a.id = UUID()
+                a.title = "A-\(i)"
+                return a
+            }
+            
+            for _ in 0..<countB {
+                let b = ModelB(context: ctx)
+                b.id = UUID()
+                b.title = "B-\(Int.random(in: 0...999_999))"
+                b.value = Int32.random(in: 0...1000)
+                b.owner = parents.randomElement()
+            }
+            
+            try ctx.save()
+        }
+        
+        Self.logger.notice("Згенеровано \(countB) об'єктів")
+    }
+    
+    func isEmpty() async throws -> Bool {
+        let ctx = container.newBackgroundContext()
+        return try await ctx.perform {
+            let req = NSFetchRequest<NSNumber>(entityName: "ModelB")
+            req.resultType = .countResultType
+            let count = try ctx.count(for: req)
+            return count == 0
+        }
+    }
+    
+    func clearDatabase() async throws {
+        let ctx = container.newBackgroundContext()
+        try await ctx.perform {
+            let fetchA = NSFetchRequest<NSFetchRequestResult>(entityName: "ModelA")
+            let fetchB = NSFetchRequest<NSFetchRequestResult>(entityName: "ModelB")
+            
+            let deleteA = NSBatchDeleteRequest(fetchRequest: fetchA)
+            let deleteB = NSBatchDeleteRequest(fetchRequest: fetchB)
+            
+            try ctx.execute(deleteA)
+            try ctx.execute(deleteB)
+            try ctx.save()
+        }
+    }
+}
+
+extension PersistenceController {
+    func generateObjects() async throws {
+        try await generateObjects(countA: 100, countB: 100_000)
+    }
+}
+
+//MARK: - Mock
+final class MockStore: PersistenceStore {
+    func isEmpty() async throws -> Bool { false }
+    func generateObjects() async throws { }
+    func clearDatabase() async throws { }
+    func fetchRows() async throws -> [RowItem] {
+        (0..<10).map { RowItem(id: UUID(), title: "Mock \($0)", value: Int32($0)) }
     }
 }
