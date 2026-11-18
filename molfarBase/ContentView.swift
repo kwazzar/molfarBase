@@ -13,13 +13,13 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if vm.isLoading {
+                switch vm.state {
+                case .idle, .loading:
                     VStack(spacing: 16) {
                         ProgressView()
-                        Text(vm.status)
-                            .foregroundStyle(.secondary)
+                        Text(vm.status).foregroundStyle(.secondary)
                     }
-                } else {
+                case .loaded:
                     List(vm.rows) { row in
                         HStack {
                             Text(row.title)
@@ -31,6 +31,11 @@ struct ContentView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                case .failed:
+                    Text(vm.status)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .padding()
                 }
             }
             .navigationTitle("ModelB (\(vm.rows.count))")
