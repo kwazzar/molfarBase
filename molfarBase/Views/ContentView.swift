@@ -9,9 +9,10 @@ import SwiftUI
 
 struct ContentView: View {
     let vm: ListViewModel
+    @State private var path: [Route] = []
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 switch vm.state {
                 case .idle, .loading:
@@ -21,14 +22,8 @@ struct ContentView: View {
                     }
                 case .loaded:
                     List(vm.rows) { row in
-                        HStack {
-                            Text(row.title)
-                            Spacer()
-                            Text("\(row.value)")
-                                .foregroundStyle(.secondary)
-                            Text(row.id.uuidString.prefix(8))
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
+                        NavigationLink(value: Route.parent(ofChild: row.id)) {
+                            RowView(row: row)
                         }
                     }
                 case .failed:
@@ -39,12 +34,23 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("ModelB (\(vm.rows.count))")
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .parent(let childID):
+                    ParentView(load: { try await vm.fetchParent(ofChild: childID) },
+                               goHome: { path.removeAll() }
+                    )
+                case .children(let parentID, let title):
+                    ChildrenView(title: title,
+                                 load: { try await vm.fetchChildren(ofParent: parentID) },
+                                 goHome: { path.removeAll() }
+                    )
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Button("Regenerate") {
-                        Task {
-                            await vm.regenerateData()
-                        }
+                        Task { await vm.regenerateData() }
                     }
                     .buttonStyle(.glass)
                     .disabled(vm.isLoading)
@@ -58,6 +64,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    let mockVM = ListViewModel(store: MockStore())
-    ContentView(vm: mockVM)
+    ContentView(vm: ListViewModel(store: MockStore()))
 }

@@ -1,5 +1,5 @@
 //
-//  Persistence.swift
+//  PersistenceController.swift
 //  molfarBase
 //
 //  Created by kwazzar on 16.11.2026.
@@ -7,13 +7,6 @@
 
 import CoreData
 import OSLog
-
-protocol PersistenceStore {
-    func isEmpty() async throws -> Bool
-    func generateObjects() async throws
-    func fetchRows() async throws -> [RowItem]
-    func clearDatabase() async throws
-}
 
 final class PersistenceController: PersistenceStore {
     static let shared = PersistenceController()
@@ -46,11 +39,33 @@ extension PersistenceController {
             }
         }
     }
+
+    func fetchParent(ofChild id: UUID) async throws -> ParentItem? {
+        let ctx = container.newBackgroundContext()
+        return try await ctx.perform {
+            let req = ModelB.fetchRequest()
+            req.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            req.fetchLimit = 1
+            guard let a = try ctx.fetch(req).first?.owner else { return nil }
+            return ParentItem(id: a.id, title: a.title ?? "", childrenCount: a.items?.count ?? 0)
+        }
+    }
+
+    func fetchChildren(ofParent id: UUID) async throws -> [RowItem] {
+        let ctx = container.newBackgroundContext()
+        return try await ctx.perform {
+            let req = ModelB.fetchRequest()
+            req.predicate = NSPredicate(format: "owner.id == %@", id as CVarArg)
+            req.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+            return try ctx.fetch(req).map {
+                RowItem(id: $0.id, title: $0.title ?? "", value: $0.value)
+            }
+        }
+    }
 }
 
 // MARK: - Generation
 extension PersistenceController {
-    
     func generateObjects(countA: Int = 100, countB: Int = 100_000) async throws {
         let ctx = container.newBackgroundContext()
         
@@ -105,15 +120,5 @@ extension PersistenceController {
 extension PersistenceController {
     func generateObjects() async throws {
         try await generateObjects(countA: 100, countB: 100_000)
-    }
-}
-
-//MARK: - Mock
-final class MockStore: PersistenceStore {
-    func isEmpty() async throws -> Bool { false }
-    func generateObjects() async throws { }
-    func clearDatabase() async throws { }
-    func fetchRows() async throws -> [RowItem] {
-        (0..<10).map { RowItem(id: UUID(), title: "Mock \($0)", value: Int32($0)) }
     }
 }

@@ -74,3 +74,14 @@ final class ListViewModel {
         }
     }
 }
+
+//MARK: - fetch to view
+extension ListViewModel {
+    func fetchParent(ofChild id: UUID) async throws -> ParentItem? {
+        try await store.fetchParent(ofChild: id)
+    }
+    
+    func fetchChildren(ofParent id: UUID) async throws -> [RowItem] {
+        try await store.fetchChildren(ofParent: id)
+    }
+}
