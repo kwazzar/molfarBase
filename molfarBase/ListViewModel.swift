@@ -14,6 +14,10 @@ final class ListViewModel {
     private(set) var state: ListState = .idle
     private let store: PersistenceStore
     
+    private(set) var total = 0
+    private let pageSize = 200
+    private var isLoadingMore = false
+    
     static let logger = Logger(subsystem: "com.nazar.molfarBase", category: "ViewModel")
     
     init(store: PersistenceStore) {
@@ -65,12 +69,32 @@ final class ListViewModel {
                 try await store.generateObjects()
             }
             state = .loading("Fetching…")
-            let items = try await store.fetchRows()
+            total = try await store.countRows()
+            let items = try await store.fetchRows(offset: 0, limit: pageSize)
             state = .loaded(items)
             Self.logger.notice("Завантажено \(items.count) об'єктів (clear: \(clear))")
         } catch {
             Self.logger.error("Помилка завантаження: \(error.localizedDescription)")
             state = .failed("Error: \(error.localizedDescription)")
+        }
+    }
+    
+    func loadMoreIfNeeded(current row: RowItem) async {
+        guard !isLoadingMore,
+              case .loaded(let current) = state,
+              current.count < total,
+              current.suffix(60).contains(where: { $0.id == row.id }) else { return }
+
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        let offset = current.count
+        do {
+            let next = try await store.fetchRows(offset: offset, limit: pageSize)
+            guard case .loaded(let latest) = state, latest.count == offset else { return }
+            state = .loaded(latest + next)
+        } catch {
+            Self.logger.error("Load more failed: \(error)")
         }
     }
 }

@@ -25,15 +25,27 @@ final class PersistenceController: PersistenceStore {
         container.viewContext.automaticallyMergesChangesFromParent = true
         Self.logger.info("PersistentContainer успішно ініціалізовано")
     }
+    
+    func countRows() async throws -> Int {
+        let ctx = container.newBackgroundContext()
+        return try await ctx.perform {
+            try ctx.count(for: NSFetchRequest<NSNumber>(entityName: "ModelB"))
+        }
+    }
 }
 
 // MARK: - Fetch for UI
 extension PersistenceController {
-    func fetchRows() async throws -> [RowItem] {
+    func fetchRows(offset: Int, limit: Int) async throws -> [RowItem] {
         let ctx = container.newBackgroundContext()
         return try await ctx.perform {
             let req = ModelB.fetchRequest()
-            req.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+            req.sortDescriptors = [
+                NSSortDescriptor(key: "title", ascending: true),
+                NSSortDescriptor(key: "id", ascending: true)
+            ]
+            req.fetchOffset = offset
+            req.fetchLimit = limit
             return try ctx.fetch(req).map {
                 RowItem(id: $0.id, title: $0.title ?? "", value: $0.value)
             }

@@ -11,7 +11,7 @@ final class MockStore: PersistenceStore {
     func isEmpty() async throws -> Bool { false }
     func generateObjects() async throws { }
     func clearDatabase() async throws { }
-    func fetchRows() async throws -> [RowItem] {
+    func fetchRows(offset: Int, limit: Int) async throws -> [RowItem] {
         (0..<10).map { RowItem(id: UUID(), title: "Mock \($0)", value: Int32($0)) }
     }
     
@@ -19,6 +19,10 @@ final class MockStore: PersistenceStore {
         ParentItem(id: UUID(), title: "Mock parent", childrenCount: 5)
     }
     func fetchChildren(ofParent id: UUID) async throws -> [RowItem] {
-        try await fetchRows()
+        try await fetchRows(offset: 1, limit: 1)
+    }
+    
+    func countRows() async throws -> Int {
+        1000
     }
 }

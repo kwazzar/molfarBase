@@ -25,6 +25,7 @@ struct ContentView: View {
                         NavigationLink(value: Route.parent(ofChild: row.id)) {
                             RowView(row: row)
                         }
+                        .onAppear { Task { await vm.loadMoreIfNeeded(current: row) } }
                     }
                 case .failed:
                     Text(vm.status)
@@ -33,7 +34,7 @@ struct ContentView: View {
                         .padding()
                 }
             }
-            .navigationTitle("ModelB (\(vm.rows.count))")
+            .navigationTitle("ModelB (\(vm.total))")
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .parent(let childID):
